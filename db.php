@@ -2,7 +2,7 @@
 $host = "localhost";
 $dbname = "capstone";
 $username = "root";
-$password = "";
+$password = "charles12344";
 
 // Set the correct timezone
 date_default_timezone_set('Asia/Manila');

@@ -28,7 +28,7 @@
         $input_password = $_POST['password'];
 
         // Prevent SQL Injection
-        $stmt = $conn->prepare("SELECT * FROM tbl_Users WHERE email = ?");
+        $stmt = $conn->prepare("SELECT * FROM tbl_users WHERE email = ?");
         $stmt->bind_param("s", $input_email);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -43,7 +43,7 @@
             } else {
                 // Reset failed attempts if lock period has passed
                 if ($user['lock_until'] && strtotime($user['lock_until']) <= strtotime($current_time)) {
-                    $stmt = $conn->prepare("UPDATE tbl_Users SET failed_attempts = 0, lock_until = NULL WHERE email = ?");
+                    $stmt = $conn->prepare("UPDATE tbl_users SET failed_attempts = 0, lock_until = NULL WHERE email = ?");
                     $stmt->bind_param("s", $input_email);
                     $stmt->execute();
                 }
@@ -52,7 +52,7 @@
                     $error = "Your account is inactive. Please contact the administrator.";
                 } elseif ($input_password === $user['password']) {
                     // Reset failed attempts on successful login
-                    $stmt = $conn->prepare("UPDATE tbl_Users SET failed_attempts = 0, lock_until = NULL WHERE email = ?");
+                    $stmt = $conn->prepare("UPDATE tbl_users SET failed_attempts = 0, lock_until = NULL WHERE email = ?");
                     $stmt->bind_param("s", $input_email);
                     $stmt->execute();
 
@@ -84,7 +84,7 @@
                     }
 
                     // Update failed attempts and lock_until in the database
-                    $stmt = $conn->prepare("UPDATE tbl_Users SET failed_attempts = ?, lock_until = ? WHERE email = ?");
+                    $stmt = $conn->prepare("UPDATE tbl_users SET failed_attempts = ?, lock_until = ? WHERE email = ?");
                     $stmt->bind_param("iss", $failed_attempts, $lock_until, $input_email);
                     $stmt->execute();
                 }
