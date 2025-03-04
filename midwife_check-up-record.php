@@ -30,7 +30,7 @@
     }
 
     // Fetch records from medicalrecords table with contact number from appointments table
-    $sql = "SELECT m.patient_name, m.address, m.age, m.record_date, 
+    $sql = "SELECT m.record_id, m.patient_name, m.address, m.age, m.record_date, 
                 IFNULL(a.contact_number, 'N/A') AS contact_number 
             FROM medicalrecords m
             LEFT JOIN appointments a ON m.appointment_id = a.id";
@@ -53,7 +53,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard</title>
+    <title>Midwife Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <style>
@@ -274,6 +274,7 @@
                             <th>Contact Number</th>
                             <th>Age</th>
                             <th>Date</th>
+                            <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -285,6 +286,9 @@
                                     <td><?= htmlspecialchars($row['contact_number']) ?></td>
                                     <td><?= htmlspecialchars($row['age'] ?: 'N/A') ?></td>
                                     <td><?= date("F j, Y", strtotime($row['record_date'])) ?></td>
+                                    <td>
+                                        <button class="btn btn-primary view-checkup" data-id="<?= $row['record_id']; ?>">View</button>
+                                    </td>
                                 </tr>
                             <?php endwhile; ?>
                         <?php else: ?>
@@ -298,7 +302,57 @@
                 </table>
             </div>
         </div>
+
+        <!-- Check-up Details Modal -->
+        <div class="modal fade" id="checkupModal" tabindex="-1" aria-labelledby="checkupModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg"> <!-- Changed modal size to large -->
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="checkupModalLabel">Check-up Record</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="checkupDetails">Loading...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
     </div>
+
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $(".view-checkup").click(function() {
+                let patientID = $(this).data("id");
+                
+                // Show loading text while fetching data
+                $("#checkupDetails").html("Loading...");
+                
+                // Fetch data via AJAX
+                $.ajax({
+                    url: "midwife_fetch_record.php",
+                    type: "GET",
+                    data: { id: patientID },
+                    success: function(response) {
+                        if (response.trim() === "no_records") {
+                            $("#checkupDetails").html("<p class='text-danger'>No records found.</p>");
+                        } else {
+                            $("#checkupDetails").html(response);
+                        }
+                    },
+                    error: function() {
+                        $("#checkupDetails").html("<p class='text-danger'>Error fetching data.</p>");
+                    }
+                });
+
+                // Show modal
+                $("#checkupModal").modal("show");
+            });
+        });
+    </script>
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
