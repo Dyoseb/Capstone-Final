@@ -1,3 +1,29 @@
+<?php
+
+include 'codes/includes/function.php'; 
+$fetchdata = new queries();
+
+// Get appointments
+$sql = $fetchdata->get_appointments();
+$appointments = [];
+while ($row = mysqli_fetch_assoc($sql)) { 
+    $appointments[] = $row;
+}
+
+$sql = $fetchdata->get_medical_records();
+$medical_records = [];
+$bp = [];
+$fhr = [];
+$weight = [];
+
+while($row = mysqli_fetch_assoc($sql)){
+    $medical_records[] = $row;
+    $bp = $row['vs_bp'];
+    $fhr = $row['vs_fhr'];
+    $weight = $row['vs_wht'];
+}
+
+?>
 
 <!DOCTYPE html>
 <html lang="en">
@@ -25,7 +51,7 @@
         </ul>
     </div>
     <div class="content">
-        <h2>Welcome, Dr. <?php echo htmlspecialchars($username); ?>!</h2>
+        <h2>Welcome, Dr. <?php echo htmlspecialchars($_SESSION['username'] ?? 'Unknown'); ?>!</h2>
 
         <div class="row">
             <div class="col-md-6">
@@ -41,9 +67,9 @@
                     <div class="card-header bg-success text-white">Upcoming Appointments</div>
                     <div class="card-body">
                         <ul class="list-group">
-                            <?php while ($row = $appointmentsResult->fetch_assoc()) { ?>
+                            <?php foreach ($appointments as $row) { ?>
                                 <li class="list-group-item">
-                                    <?php echo $row['patient_name'] . ' - ' . $row['appointment_date'] . ' (' . $row['status'] . ')'; ?>
+                                    <?php echo htmlspecialchars($row['full_name']) . ' - ' . htmlspecialchars($row['visit_date']) . ' (' . htmlspecialchars($row['visit_time']) . ')'; ?>
                                 </li>
                             <?php } ?>
                         </ul>
@@ -66,11 +92,11 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php while ($row = $visitsResult->fetch_assoc()) { ?>
+                                <?php foreach ($medical_records as $row) { ?>
                                     <tr>
                                         <td><?php echo htmlspecialchars($row['patient_name']); ?></td>
-                                        <td><?php echo $row['visit_date']; ?></td>
-                                        <td><?php echo htmlspecialchars($row['diagnosis']); ?></td>
+                                        <td><?php echo htmlspecialchars($row['record_date']); ?></td>
+                                        <td><?php echo htmlspecialchars($row['past_history']); ?></td>
                                     </tr>
                                 <?php } ?>
                             </tbody>
@@ -85,20 +111,20 @@
         var healthChart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: <?php echo json_encode($dates); ?>,
+                labels: <?php echo json_encode($dates ?? []); ?>,
                 datasets: [{
                     label: 'Blood Pressure',
-                    data: <?php echo json_encode($bp); ?>,
+                    data: <?php echo json_encode($bp ?? []); ?>,
                     borderColor: 'red',
                     fill: false
                 }, {
                     label: 'Weight (kg)',
-                    data: <?php echo json_encode($weight); ?>,
+                    data: <?php echo json_encode($weight ?? []); ?>,
                     borderColor: 'blue',
                     fill: false
                 }, {
                     label: 'Fetal Heart Rate',
-                    data: <?php echo json_encode($fhr); ?>,
+                    data: <?php echo json_encode($fhr ?? []); ?>,
                     borderColor: 'green',
                     fill: false
                 }]
