@@ -1,0 +1,162 @@
+body {
+    background-color: #f8f9fa;
+}
+
+/* Sidebar styles */
+.sidebar {
+    height: 100vh;
+    width: 250px;
+    position: fixed;
+    top: 60.9px; /* Navbar height */
+    left: -250px; /* Initially hidden */
+    background-color: #8CB150;
+    padding-top: 20px;
+    overflow-y: auto; /* Enable scrolling for smaller screens */
+    transition: left 0.3s ease;
+    z-index: 1040; /* Ensure it appears above main content */
+}
+
+.sidebar.open {
+    left: 0;
+}
+
+.sidebar.closed {
+    left: -250px; /* Allow hiding on toggle */
+}
+
+.sidebar .nav-link {
+    color: #ffffff;
+    font-size: 18px; /* Adjust as needed */
+    font-weight: bold; /* Makes text stand out */
+    padding: 12px 15px; /* Increase spacing */
+}
+
+.sidebar .nav-link:hover {
+    background-color: #495057;
+}
+
+.main-content {
+    padding: 20px;
+    margin-top: 56px; /* Match navbar height */
+    transition: margin-left 0.3s ease;
+}
+
+/* Responsive styles for large screens */
+@media (min-width: 992px) {
+    .sidebar {
+        left: 0; /* Sidebar always visible by default on large screens */
+    }
+
+    .sidebar.closed {
+        left: -250px; /* Allow hiding on toggle */
+    }
+
+    .main-content {
+        margin-left: 250px; /* Default margin for large screens */
+    }
+
+    .main-content.expanded {
+        margin-left: 0; /* Adjust when sidebar is toggled */
+    }
+}
+
+/* Responsive styles for small screens */
+@media (max-width: 991px) {
+    .sidebar {
+        width: 250px;
+        height: calc(100vh - 56px); /* Adjust height to exclude navbar */
+        left: -250px; /* Hidden by default */
+    }
+
+    .sidebar.open {
+        left: 0;
+    }
+
+    .main-content {
+        margin-left: 0; /* Reset margin for small screens */
+    }
+}
+
+/* Toggle button styles */
+.toggle-btn {
+    border: none;
+    background: transparent;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
+.toggle-btn:focus {
+    outline: none;
+}
+
+/* Larger font for navbar brand */
+.navbar-brand {
+    font-size: 20px; /* Adjust size as needed */
+    font-weight: bold; /* Makes it stand out */
+}
+
+.card {
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(33, 40, 50, 0.15);
+}
+.form-control, .form-select {
+    border-radius: 0.35rem;
+}
+
+.submenu {
+    transition: max-height 0.3s ease-in-out;
+    overflow: hidden;
+}
+
+.submenu {
+    max-height: 0px;
+    overflow: hidden;
+    transition: max-height 0.4s ease-in-out;
+    padding-left: 20px;
+}
+
+.arrow-icon {
+    transition: transform 0.3s ease-in-out;
+}
+
+.rotate {
+    transform: rotate(180deg);
+}
+
+.professional-select {
+    width: 100%;
+}
+
+.search-container {
+    position: relative;
+}
+
+.search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+}
+
+.patient-result {
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
+.patient-result:hover {
+    background-color: #f8f9fa;
+}
+
+.no-results {
+    padding: 8px 12px;
+    color: #6c757d;
+    font-style: italic;
+}

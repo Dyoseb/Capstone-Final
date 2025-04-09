@@ -2,6 +2,8 @@
         session_start();
 
         include 'db.php';
+        
+
 
         if (!isset($_SESSION['username']) || !isset($_SESSION['role'])) {
             header("Location: index.php"); // Redirect to login page if not logged in
@@ -22,66 +24,6 @@
             header("Location: index.php");
             exit;
         }
-
-        // Handle patient search AJAX request
-        if (isset($_POST['search_patients'])) {
-            $search = $conn->real_escape_string($_POST['search_patients']);
-            $query = "SELECT record_id, patient_name FROM medicalrecords 
-                    WHERE patient_name LIKE '%$search%' 
-                    ORDER BY record_date DESC LIMIT 10";
-            $result = $conn->query($query);
-
-            if ($result->num_rows > 0) {
-                while ($row = $result->fetch_assoc()) {
-                    echo '<div class="patient-result" data-id="'.$row['record_id'].'">';
-                    echo htmlspecialchars($row['patient_name']);
-                    echo '</div>';
-                }
-            } else {
-                echo '<div class="no-results">No patients found</div>';
-            }
-            exit; // Stop further execution for AJAX requests
-        }
-
-        // Handle form submission
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $total_amount = (float)$_POST['total_amount'];
-            
-            // Get single professional data (not arrays anymore)
-            $professional_name = $_POST['professional_name'] ?? '';
-            $professional_fees = $_POST['professional_fees'] ?? 0;
-
-            // Insert into database
-            $stmt = $conn->prepare("INSERT INTO transactions (
-                record_id, transaction_date, room_board, drugs_medicine, 
-                delivery_room_fee, supplies, professional_name, professional_fees, total_amount, 
-                payment_status, amount_paid, note
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-
-            $stmt->bind_param(
-                "isdddddsddss",
-                $_POST['record_id'],
-                $_POST['transaction_date'],
-                $_POST['room_board'],
-                $_POST['drugs_medicine'],
-                $_POST['delivery_room_fee'],
-                $_POST['supplies'],
-                $professional_name,
-                $professional_fees,
-                $total_amount,
-                $_POST['payment_status'],
-                $_POST['amount_paid'],
-                $_POST['note']
-            );
-
-            if ($stmt->execute()) {
-                $transaction_id = $conn->insert_id;
-                header("Location: midwife_view_receipt.php?id=$transaction_id");
-                exit;
-            } else {
-                $error = "Error saving payment: " . $conn->error;
-            }
-        }
     ?>
 
     <!DOCTYPE html>
@@ -94,172 +36,10 @@
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
         <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.1/chart.min.js"></script>
 
-        <style>
-            body {
-                background-color: #f8f9fa;
-            }
-
-            /* Sidebar styles */
-            .sidebar {
-                height: 100vh;
-                width: 250px;
-                position: fixed;
-                top: 60.9px; /* Navbar height */
-                left: -250px; /* Initially hidden */
-                background-color: #8CB150;
-                padding-top: 20px;
-                overflow-y: auto; /* Enable scrolling for smaller screens */
-                transition: left 0.3s ease;
-                z-index: 1040; /* Ensure it appears above main content */
-            }
-
-            .sidebar.open {
-                left: 0;
-            }
-
-            .sidebar.closed {
-                left: -250px; /* Allow hiding on toggle */
-            }
-
-            .sidebar .nav-link {
-                color: #ffffff;
-                font-size: 18px; /* Adjust as needed */
-                font-weight: bold; /* Makes text stand out */
-                padding: 12px 15px; /* Increase spacing */
-            }
-
-            .sidebar .nav-link:hover {
-                background-color: #495057;
-            }
-
-            .main-content {
-                padding: 20px;
-                margin-top: 56px; /* Match navbar height */
-                transition: margin-left 0.3s ease;
-            }
-
-            /* Responsive styles for large screens */
-            @media (min-width: 992px) {
-                .sidebar {
-                    left: 0; /* Sidebar always visible by default on large screens */
-                }
-
-                .sidebar.closed {
-                    left: -250px; /* Allow hiding on toggle */
-                }
-
-                .main-content {
-                    margin-left: 250px; /* Default margin for large screens */
-                }
-
-                .main-content.expanded {
-                    margin-left: 0; /* Adjust when sidebar is toggled */
-                }
-            }
-
-            /* Responsive styles for small screens */
-            @media (max-width: 991px) {
-                .sidebar {
-                    width: 250px;
-                    height: calc(100vh - 56px); /* Adjust height to exclude navbar */
-                    left: -250px; /* Hidden by default */
-                }
-
-                .sidebar.open {
-                    left: 0;
-                }
-
-                .main-content {
-                    margin-left: 0; /* Reset margin for small screens */
-                }
-            }
-
-            /* Toggle button styles */
-            .toggle-btn {
-                border: none;
-                background: transparent;
-                color: white;
-                font-size: 1.5rem;
-                cursor: pointer;
-            }
-
-            .toggle-btn:focus {
-                outline: none;
-            }
-
-            /* Larger font for navbar brand */
-            .navbar-brand {
-                font-size: 20px; /* Adjust size as needed */
-                font-weight: bold; /* Makes it stand out */
-            }
-
-            .card {
-                box-shadow: 0 0.15rem 1.75rem 0 rgba(33, 40, 50, 0.15);
-            }
-            .form-control, .form-select {
-                border-radius: 0.35rem;
-            }
-
-            .submenu {
-                transition: max-height 0.3s ease-in-out;
-                overflow: hidden;
-            }
-
-            .submenu {
-                max-height: 0px;
-                overflow: hidden;
-                transition: max-height 0.4s ease-in-out;
-                padding-left: 20px;
-            }
-
-            .arrow-icon {
-                transition: transform 0.3s ease-in-out;
-            }
-
-            .rotate {
-                transform: rotate(180deg);
-            }
-
-            .professional-select {
-                width: 100%;
-            }
-
-            .search-container {
-                position: relative;
-            }
-
-            .search-results {
-                position: absolute;
-                top: 100%;
-                left: 0;
-                right: 0;
-                background: white;
-                border: 1px solid #ddd;
-                border-top: none;
-                border-radius: 0 0 4px 4px;
-                max-height: 200px;
-                overflow-y: auto;
-                z-index: 1000;
-                display: none;
-            }
-
-            .patient-result {
-                padding: 8px 12px;
-                cursor: pointer;
-            }
-
-            .patient-result:hover {
-                background-color: #f8f9fa;
-            }
-
-            .no-results {
-                padding: 8px 12px;
-                color: #6c757d;
-                font-style: italic;
-            }
-        </style>
+        <link rel="stylesheet" href="styles\midwife_create.css">
     </head>
     <body>
+        <!-- <div id="professional_name1" value=<?php echo $_POST['professional_name']; ?> hidden></div> -->
         <!-- Navigation Bar -->
         <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
             <div class="container-fluid">
@@ -267,11 +47,14 @@
                     <span class="navbar-toggler-icon"></span>
                 </button>
                 <!-- Admin Dashboard brand -->
-                <a class="navbar-brand ms-2" href="#"><img src="Images\amorganda logo.png" alt="Logo" style="width: 35px; height: 35px; border-radius: 50%; margin-right: 10px;">Amorganda Lying-in Clinic</a>
+                <a class="navbar-brand ms-2" href="#">
+                    <img src="Images/amorganda logo.png" alt="Logo" style="width: 35px; height: 35px; border-radius: 50%; margin-right: 10px;">
+                    Amorganda Lying-in Clinic
+                </a>
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="profileDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <span class="ms-2"><?php echo htmlspecialchars($username); ?></span>
+                            <span class="ms-2"><?= htmlspecialchars($username); ?></span>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end profile-dropdown" aria-labelledby="profileDropdown" style="position: absolute; right: 0; top: 50px; z-index: 1050; box-shadow: 0px 4px 6px rgba(0,0,0,0.1);">
                             <li><a class="dropdown-item" href="changepassword.php"><i class="fas fa-lock"></i> Change Password</a></li>
@@ -317,16 +100,8 @@
                         <i class="fas fa-chevron-down arrow-icon"></i>
                     </a>
                     <ul class="submenu" id="intrapartumSubmenu">
-                        <li>
-                            <a class="nav-link" href="midwife_intrapartum-form.php">
-                                <i class="fa-solid fa-file-circle-plus"></i> B2 Record
-                            </a>
-                        </li>
-                        <li>
-                            <a class="nav-link" href="midwife_intrapartum-records.php">
-                                <i class="fa-solid fa-clipboard"></i> Saved B2 Records
-                            </a>
-                        </li>
+                        <li><a class="nav-link" href="midwife_intrapartum-form.php"><i class="fa-solid fa-file-circle-plus"></i> B2 Record</a></li>
+                        <li><a class="nav-link" href="midwife_intrapartum-records.php"><i class="fa-solid fa-clipboard"></i> Saved B2 Records</a></li>
                     </ul>
                 </li>
             </ul>
@@ -362,46 +137,41 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label class="form-label">Transaction Date</label>
-                                    <input type="datetime-local" class="form-control" name="transaction_date" 
-                                        value="<?= isset($_POST['transaction_date']) ? $_POST['transaction_date'] : date('Y-m-d\TH:i') ?>" required>
+                                    <input type="datetime-local" class="form-control" name="transaction_date" id="transaction_date" value="<?= isset($_POST['transaction_date']) ? $_POST['transaction_date'] : date('Y-m-d\TH:i') ?>" required>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Hospital Charges -->
+                        <!-- Clinic Charges -->
                         <div class="border p-3 mb-4 rounded">
-                            <h5 class="mb-3"><i class="fas fa-hospital me-2"></i>Clinic Charges</h5>
+                            <h5 class="mb-3"><i class="fas fa-hospital me-2"></i> Clinic Charges</h5>
                             <div class="row g-3">
                                 <div class="col-md-3">
                                     <label class="form-label">Room & Board</label>
                                     <div class="input-group">
                                         <span class="input-group-text">₱</span>
-                                        <input type="number" class="form-control hospital-charge" name="room_board" 
-                                            min="0" step="0.01" value="<?= isset($_POST['room_board']) ? $_POST['room_board'] : '1500.00' ?>" required>
+                                        <input type="number" class="form-control hospital-charge" name="room_board" id="room_board" min="0" step="0.01" value="<?= '1500.00' ?>" required>
                                     </div>
                                 </div>
                                 <div class="col-md-3">
                                     <label class="form-label">Drugs & Medicine</label>
                                     <div class="input-group">
                                         <span class="input-group-text">₱</span>
-                                        <input type="number" class="form-control hospital-charge" name="drugs_medicine" 
-                                            min="0" step="0.01" value="<?= isset($_POST['drugs_medicine']) ? $_POST['drugs_medicine'] : '0.00' ?>" required>
+                                        <input type="number" class="form-control hospital-charge" name="drugs_medicine" id="drugs_medicine" min="0" step="0.01" value="<?=  '0.00' ?>" required>
                                     </div>
                                 </div>
                                 <div class="col-md-3">
                                     <label class="form-label">Delivery Room</label>
                                     <div class="input-group">
                                         <span class="input-group-text">₱</span>
-                                        <input type="number" class="form-control hospital-charge" name="delivery_room_fee" 
-                                            min="0" step="0.01" value="<?= isset($_POST['delivery_room_fee']) ? $_POST['delivery_room_fee'] : '3000.00' ?>" required>
+                                        <input type="number" class="form-control hospital-charge" name="delivery_room_fee" id="delivery_room_fee" min="0" step="0.01" value=" '3000.00' ?>" required>
                                     </div>
                                 </div>
                                 <div class="col-md-3">
                                     <label class="form-label">Supplies</label>
                                     <div class="input-group">
                                         <span class="input-group-text">₱</span>
-                                        <input type="number" class="form-control hospital-charge" name="supplies" 
-                                            min="0" step="0.01" value="<?= isset($_POST['supplies']) ? $_POST['supplies'] : '500.00' ?>" required>
+                                        <input type="number" class="form-control hospital-charge" name="supplies" id="supplies" min="0" step="0.01" value="<?= '500.00' ?>" required>
                                     </div>
                                 </div>
                             </div>
@@ -409,19 +179,17 @@
 
                         <!-- Professional Fees -->
                         <div class="border p-3 mb-4 rounded">
-                            <h5 class="mb-3"><i class="fas fa-user-md me-2"></i>Professional Fees</h5>
+                            <h5 class="mb-3"><i class="fas fa-user-md me-2"></i> Professional Fees</h5>
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <label class="form-label">Doctor's Name</label>
-                                    <input type="text" class="form-control" name="professional_name" 
-                                        placeholder="Dr. Juan Dela Cruz" value="<?= isset($_POST['professional_name']) ? $_POST['professional_name'] : '' ?>" required>
+                                    <input type="text" class="form-control" name="professional_name" id="professional_name" placeholder="Dr. Juan Dela Cruz" value="<?= '' ?>" required>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Fee Amount</label>
                                     <div class="input-group">
                                         <span class="input-group-text">₱</span>
-                                        <input type="number" class="form-control" name="professional_fees" 
-                                            min="0" step="0.01" value="<?= isset($_POST['professional_fees']) ? $_POST['professional_fees'] : '500.00' ?>" required>
+                                        <input type="number" class="form-control" name="professional_fees" id="professional_fees" min="0" step="0.01" value="<?=  '500.00' ?>" required>
                                     </div>
                                 </div>
                             </div>
@@ -435,7 +203,7 @@
                                     <div class="input-group">
                                         <span class="input-group-text">₱</span>
                                         <input type="text" class="form-control" id="total_amount_display" value="0.00" readonly>
-                                        <input type="hidden" name="total_amount" id="total_amount">
+                                        <input type="text" name="total_amount" id="total_amount" hidden>
                                     </div>
                                 </div>
                             </div>
@@ -447,10 +215,10 @@
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label class="form-label">Payment Status</label>
-                                        <select class="form-select" name="payment_status" required>
-                                            <option value="pending" <?= isset($_POST['payment_status']) && $_POST['payment_status'] === 'pending' ? 'selected' : '' ?>>Pending</option>
-                                            <option value="partial" <?= isset($_POST['payment_status']) && $_POST['payment_status'] === 'partial' ? 'selected' : '' ?>>Partial Payment</option>
-                                            <option value="paid" <?= isset($_POST['payment_status']) && $_POST['payment_status'] === 'paid' ? 'selected' : '' ?>>Fully Paid</option>
+                                        <select class="form-select" name="payment_status" id="payment_status" required>
+                                            <option value="pending" >Pending</option>
+                                            <option value="partial" >Partial Payment</option>
+                                            <option value="paid" >Fully Paid</option>
                                         </select>
                                     </div>
                                 </div>
@@ -459,22 +227,20 @@
                                         <label class="form-label">Amount Paid</label>
                                         <div class="input-group">
                                             <span class="input-group-text">₱</span>
-                                            <input type="number" class="form-control" name="amount_paid" 
-                                                min="0" step="0.01" value="<?= isset($_POST['amount_paid']) ? $_POST['amount_paid'] : '0.00' ?>" required>
+                                            <input type="number" class="form-control" name="amount_paid" id="amount_paid" min="0" step="0.01" value="<?= $_POST['amount_paid'] ?? '0.00' ?>" required>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">Notes</label>
-                                <textarea class="form-control" name="note" rows="2" 
-                                        placeholder="Any additional notes..."><?= isset($_POST['note']) ? htmlspecialchars($_POST['note']) : '' ?></textarea>
+                                <textarea class="form-control" name="note" id="note" rows="2" placeholder="Any additional notes..."><?= htmlspecialchars($_POST['note'] ?? '') ?></textarea>
                             </div>
                         </div>
 
                         <div class="d-flex justify-content-end gap-2">
                             <button type="reset" class="btn btn-secondary">Reset</button>
-                            <button type="submit" class="btn btn-primary">
+                            <button type="button" id="dataSubmit" class="btn btn-primary">
                                 <i class="fas fa-save me-1"></i> Save Payment
                             </button>
                         </div>
@@ -499,13 +265,77 @@
                 sidebar.classList.toggle('closed'); 
                 mainContent.classList.toggle('expanded'); 
             });
+        </script>
+
+        <!-- Intrapartum Submenu Toggle Script -->
+        <script>
+        $(document).on('click', '#dataSubmit', function() {
+            var isSubmitting = true;
+
+            const recordID = document.getElementById('record_id').value;
+            const transactionDate = document.getElementById('transaction_date').value;
+            const roomBoard = document.getElementById('room_board').value;
+            const drugsMedicine = document.getElementById('drugs_medicine').value;
+            const deliveryRoomFee = document.getElementById('delivery_room_fee').value;
+            const supplies = document.getElementById('supplies').value;
+            const professionalName = document.getElementById('professional_name').value;
+            const professionalFees = document.getElementById('professional_fees').value;
+            const totalAmount = document.getElementById('total_amount').value;
+            const paymentStatus = document.getElementById('payment_status').value;
+            const amountPaid = document.getElementById('amount_paid').value;
+            const note = document.getElementById('note').value;
+
+            console.log("Form Data:", {
+                recordID, transactionDate, roomBoard, drugsMedicine, deliveryRoomFee, supplies, 
+                professionalName, professionalFees, totalAmount, paymentStatus, amountPaid, note
+            });
+
+            const fd = new FormData();
+            fd.append("pick", "1");
+            fd.append("record_id", recordID);
+            fd.append("transaction_date", transactionDate);
+            fd.append("room_board", roomBoard);
+            fd.append("drugs_medicine", drugsMedicine);
+            fd.append("delivery_room_fee", deliveryRoomFee);
+            fd.append("supplies", supplies);
+            fd.append("professional_fees", professionalFees);
+            fd.append("professional_name", professionalName);
+            fd.append("total_amount", totalAmount);
+            fd.append("payment_status", paymentStatus);
+            fd.append("amount_paid", amountPaid);
+            fd.append("note", note);
+
+            $.ajax({
+                url: "codes/includes/admin_control.php",
+                data: fd,
+                processData: false,
+                contentType: false,
+                type: "POST",
+                success: function(result) {
+                    if ($.trim(result) !== "0") {
+                        console.log("Success: Transaction inserted!");
+                        // Optionally redirect after success
+                        // setTimeout(() => (window.location.href = "trainingList"), 2000);
+                    } else {
+                        console.log("Error: Failed to insert transaction");
+                        // Optionally re-enable button here
+                        $("#AQApproved").prop("disabled", false);
+                    }
+                    isSubmitting = false;
+                },
+                error: function() {
+                    console.log("Error: An error occurred during the AJAX request");
+                    isSubmitting = false;
+                }
+            });
+        });
 
             document.addEventListener("DOMContentLoaded", function () {
                 let toggleButton = document.getElementById("intrapartumToggle");
                 let submenu = document.getElementById("intrapartumSubmenu");
                 let arrowIcon = toggleButton.querySelector(".arrow-icon");
 
-                // Initialize height to 0 so it smoothly opens
+                // Initialize submenu height to 0
                 submenu.style.maxHeight = "0px";
                 submenu.style.overflow = "hidden";
 
@@ -523,64 +353,62 @@
             });
         </script>
 
-    <script>
-        // Patient search functionality
-        $(document).ready(function() {
-            $('#patientSearch').on('input', function() {
-                const searchTerm = $(this).val().trim();
-                if (searchTerm.length >= 2) {
-                    $.ajax({
-                        url: window.location.href,
-                        method: 'POST',
-                        data: { search_patients: searchTerm },
-                        success: function(response) {
-                            $('#patientResults').html(response).show();
-                        },
-                        error: function(xhr, status, error) {
-                            console.error("AJAX Error:", status, error);
-                        }
-                    });
-                } else {
+        <!-- Patient Search Functionality -->
+        <!-- <script>
+            $(document).ready(function() {
+                $('#patientSearch').on('input', function() {
+                    const searchTerm = $(this).val().trim();
+                    if (searchTerm.length >= 2) {
+                        $.ajax({
+                            url: window.location.href,
+                            method: 'POST',
+                            data: { search_patients: searchTerm },
+                            success: function(response) {
+                                $('#patientResults').html(response).show();
+                            },
+                            error: function(xhr, status, error) {
+                                console.error("AJAX Error:", status, error);
+                            }
+                        });
+                    } else {
+                        $('#patientResults').hide();
+                    }
+                });
+
+                // Handle click on search result
+                $(document).on('click', '.patient-result', function() {
+                    const recordId = $(this).data('id');
+                    const patientName = $(this).text();
+                    $('#patientSearch').val(patientName);
+                    $('#record_id').val(recordId);
                     $('#patientResults').hide();
-                }
+                });
+
+                // Hide results when clicking elsewhere
+                $(document).click(function(e) {
+                    if (!$(e.target).closest('.search-container').length) {
+                        $('#patientResults').hide();
+                    }
+                });
             });
+        </script> -->
 
-            // Handle click on search result
-            $(document).on('click', '.patient-result', function() {
-                const recordId = $(this).data('id');
-                const patientName = $(this).text();
-                $('#patientSearch').val(patientName);
-                $('#record_id').val(recordId);
-                $('#patientResults').hide();
-            });
-
-            // Hide results when clicking elsewhere
-            $(document).click(function(e) {
-                if (!$(e.target).closest('.search-container').length) {
-                    $('#patientResults').hide();
-                }
-            });
-        });
-    </script>
-
-    
-<script>
-
-            // Function to calculate total amount
+        <!-- Calculate Total Amount -->
+        <script>
             function calculateTotal() {
                 let total = 0;
-                
+
                 // Add hospital charges
                 total += parseFloat($('[name="room_board"]').val()) || 0;
                 total += parseFloat($('[name="drugs_medicine"]').val()) || 0;
                 total += parseFloat($('[name="delivery_room_fee"]').val()) || 0;
                 total += parseFloat($('[name="supplies"]').val()) || 0;
-                
+
                 // Add professional fees
                 $('[name="professional_fees[]"]').each(function() {
                     total += parseFloat($(this).val()) || 0;
                 });
-                
+
                 // Update the display
                 $('#total_amount_display').val(total.toFixed(2));
                 $('#total_amount').val(total.toFixed(2));
@@ -591,10 +419,10 @@
 
             // Initialize on page load
             $(document).ready(function() {
-                updateRemoveButtons();
                 calculateTotal();
             });
         </script>
     </body>
+
     </html>
     <?php $conn->close(); ?>
